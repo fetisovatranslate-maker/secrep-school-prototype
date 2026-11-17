@@ -2829,7 +2829,7 @@
     return `<button type="button" class="notification-toggle-row" aria-pressed="${checked}" data-click="notificationToggle" data-key="${key}"><span>${label}</span>${modernSwitcher(checked)}</button>`;
   }
   function notificationPremiumRow(label) {
-    return `<div class="notification-premium-row"><span>${label}</span><img src="assets/notifications-crown.svg" alt="" width="30" height="30"></div>`;
+    return `<div class="notification-premium-row"><span>${label}</span><img src="assets/notifications-crown.svg?v=2" alt="" width="30" height="30"></div>`;
   }
   function notificationRows(rows) {
     return `<div class="notification-rows">${rows}</div>`;
