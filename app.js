@@ -1680,15 +1680,13 @@
     { key: "staff", text: "Сотрудники", icon: () => userSvg({ size: 18 }) },
     { key: "students", text: "Ученики", icon: () => userSvg({ size: 18 }) },
     { key: "schedule", text: "Расписание", icon: () => calendarSmallSvg() },
-    { key: "notifications", text: "Уведомления", icon: () => bellSmallSvg() },
-    { key: "pay", text: "Пэй", icon: () => creditCardSvg({ size: 18 }) }
+    { key: "notifications", text: "Уведомления", icon: () => bellSmallSvg() }
   ];
   var BOTTOM_MENU = [
     { key: "home", icon: () => houseSvg({ size: 24 }) },
     { key: "staff", icon: () => userSvg() },
     { key: "schedule", icon: () => calendarSvg() },
-    { key: "students", icon: () => graduationHatSvg({ size: 24 }) },
-    { key: "pay", icon: () => creditCardSvg() }
+    { key: "students", icon: () => graduationHatSvg({ size: 40 }) }
   ];
   var SECTION_NAMES = { home: "Главная", notifications: "Уведомления", pay: "Пэй" };
   var notificationTab = "admin";
