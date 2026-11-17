@@ -1171,7 +1171,8 @@
     staff: { page: "staff", view: "list" },
     students: { page: "students", view: "list" },
     schedule: { page: "schedule" },
-    notifications: { page: "notifications" }
+    notifications: { page: "notifications" },
+    subscription: { page: "subscription" }
   };
   function goTo(next) {
     previous = current;
@@ -1796,13 +1797,106 @@
     const me = avatarCircle("Администратор", { size: "l" });
     const desktop = isDesktop();
     return `<div class="page">
-    ${desktop ? `<div class="page-top">${props.hideTopTitle ? "" : props.headerHeading ? `<h1 class="page-top-title notification-top-title">${esc(props.title)}</h1>` : `<span class="page-top-title">${esc(props.title)}</span>`}<button type="button" class="page-top-me" data-click="pageStub" data-text="Меню профиля как в базовом SecRep">${me}${chevronDownSvg({ size: 24 })}</button></div>` : `<div class="page-top">${me}${kitIconButton({ icon: bellSvg(), click: "menuGo", data: { key: "notifications" }, title: "Уведомления" })}</div>`}
+    ${desktop ? `<div class="page-top">${props.hideTopTitle ? "" : props.headerHeading ? `<h1 class="page-top-title notification-top-title">${esc(props.title)}</h1>` : `<span class="page-top-title">${esc(props.title)}</span>`}<button type="button" class="page-top-me" data-click="accountOpen" aria-label="Открыть меню аккаунта" aria-haspopup="dialog">${me}${chevronDownSvg({ size: 24 })}</button></div>` : `<div class="page-top"><button type="button" class="page-top-me" data-click="accountOpen" aria-label="Открыть меню аккаунта" aria-haspopup="dialog">${me}</button>${kitIconButton({ icon: bellSvg(), click: "menuGo", data: { key: "notifications" }, title: "Уведомления" })}</div>`}
     <div class="page-body">
       ${desktop ? sideMenu(props.activeMenu) : ""}
       <main class="page-content" ${props.mainLabel ? `aria-label="${esc(props.mainLabel)}"` : ""}>${props.content}</main>
     </div>
     ${desktop || props.hideBottomMenu ? "" : bottomMenu(props.activeMenu)}
   </div>`;
+  }
+
+  // Account menu and school subscription. Demo state stays separate from signup.
+  var accountMenuOpen = false;
+  var accountReturnFocus = null;
+  var demoSubscriptionPayments = [];
+  var selectedSchoolPlan = null;
+  var subscriptionPaymentState = "review";
+  onClick("accountOpen", () => {
+    accountReturnFocus = document.activeElement;
+    accountMenuOpen = true;
+    requestRender();
+  });
+  function closeAccountMenu() {
+    accountMenuOpen = false;
+    const dialog = document.getElementById("account-dialog");
+    if (dialog?.open) dialog.close();
+    document.querySelector('[data-click="accountOpen"]')?.focus();
+  }
+  onClick("accountClose", closeAccountMenu);
+  onClick("accountBackdrop", (el, event) => {
+    if (event.target === el) closeAccountMenu();
+  });
+  onClick("accountSubscription", () => {
+    closeAccountMenu();
+    closeAllPanels();
+    goTo({ page: "subscription" });
+  });
+  onClick("accountProfile", () => {
+    closeAccountMenu();
+    openPanel("account-profile", () => ({ title: "Данные профиля", narrow: true,
+      body: `<div class="account-detail-list"><h2>Администратор</h2><p>admin@example.com</p><p>Рабочее пространство: ${esc(schoolData()?.name ?? "")}</p><p class="form-hint">Демонстрационный профиль. Контакты заменены на тестовые.</p></div>` }));
+  });
+  onClick("accountPayments", () => {
+    closeAccountMenu();
+    openPanel("account-payments", () => ({ title: "Платежи", narrow: true,
+      body: `<div class="account-detail-list"><p>Подписка школы «${esc(schoolData()?.name ?? "") }»</p>${demoSubscriptionPayments.length ? demoSubscriptionPayments.map(payment => `<div class="subscription-payment-row"><strong>${esc(payment.plan)}</strong><span>${moneyToString(payment.amount)}</span><small>Демонстрационная оплата · ${esc(payment.date)}</small></div>`).join("") : `<p>Пока нет платежей</p><p class="form-hint">Здесь появятся демонстрационные оплаты, выполненные в прототипе.</p>`}</div>` }));
+  });
+  onClick("accountSessions", () => {
+    closeAccountMenu();
+    openPanel("account-sessions", () => ({ title: "Управление сессиями", narrow: true,
+      body: `<div class="account-detail-list"><h2>Текущая сессия</h2><p>Демонстрационный прототип</p><p class="form-hint">Реальные сессии аккаунта к прототипу не подключены.</p></div>` }));
+  });
+  onClick("accountLogout", () => {
+    closeAccountMenu(); closeAllPanels(); goTo({ page: "signup", step: "role" });
+  });
+  function accountMenuHtml() {
+    if (!accountMenuOpen) return "";
+    return `<dialog id="account-dialog" class="account-dialog" aria-label="Настройки аккаунта" data-click="accountBackdrop"><section class="account-menu"><div class="account-menu-heading"><div><strong>Настройки аккаунта:<br>admin@example.com</strong><p>Подписка школы: ${esc(schoolData()?.tariffName ?? "")}</p></div>${kitIconButton({ icon: crossSvg({ size: 24 }), click: "accountClose", title: "Закрыть меню", naked: true, small: true })}</div><div class="account-menu-items"><button type="button" data-click="accountProfile">Данные профиля</button><button type="button" data-click="accountSubscription">Управление подпиской</button><button type="button" data-click="accountPayments">Платежи</button><button type="button" data-click="accountSessions">Управление сессиями</button><button type="button" class="account-theme-row" disabled title="Тёмная тема пока недоступна"><span>Тёмная тема<small>Пока недоступна</small></span>${modernSwitcher(false)}</button></div><button type="button" class="account-logout" data-click="accountLogout">${chevronLeftSvg({ size: 24 })}<span>Выйти из аккаунта</span></button></section></dialog>`;
+  }
+  function schoolPlanFeatures() {
+    return ["Общий календарь школы", "Сотрудники, ученики и группы", "Индивидуальные и групповые занятия", "Уведомления о занятиях", "Ручные напоминания об оплате"];
+  }
+  onClick("subscriptionChoose", el => {
+    const plan = TARIFFS.find(item => item.key === dataOf(el, "key"));
+    if (!plan || plan.limit < activeTeachers().length) {
+      showInfo("На этом тарифе недостаточно мест для преподавателей школы"); return;
+    }
+    selectedSchoolPlan = plan;
+    subscriptionPaymentState = "review";
+    openPanel("school-subscription-payment", schoolSubscriptionPaymentPanel);
+  });
+  function schoolSubscriptionPaymentPanel() {
+    const plan = selectedSchoolPlan;
+    const failed = subscriptionPaymentState === "failed";
+    const pending = subscriptionPaymentState === "pending";
+    return { title: "Оплата подписки школы", narrow: true,
+      body: `<div class="account-detail-list"><p class="subscription-demo-note">Демонстрационная оплата — деньги не списываются</p><h2>${esc(plan.name)}</h2><p>Школа: ${esc(schoolData()?.name ?? "")}</p><div class="subscription-summary-line"><span>Период</span><strong>1 месяц</strong></div><div class="subscription-summary-line"><span>К оплате</span><strong>${moneyToString(plan.price)}</strong></div><p>До ${plan.limit} преподавателей</p><p class="form-hint">Цены и лимиты демонстрационные. Автопродление не подключено.</p>${pending ? `<p role="status">Ожидаем подтверждения оплаты. Текущий тариф продолжает действовать.</p>` : failed ? `<p role="alert" class="subscription-error">Оплата не прошла. Текущий тариф сохранён. Можно повторить попытку.</p>` : `<p>Новый тариф будет применён только после подтверждения оплаты.</p>`}</div>`,
+      foot: pending ? `${kitButtonDarkViolet({ text: "Подтвердить демооплату", click: "subscriptionPaid", full: true })}${kitButtonWhite({ text: "Показать ошибку оплаты", click: "subscriptionFail", full: true })}${kitButtonWhite({ text: "Отменить", click: "panelClose", full: true })}` : `${kitButtonDarkViolet({ text: failed ? "Повторить демооплату" : "Перейти к демооплате", click: "subscriptionPay", full: true })}${kitButtonWhite({ text: "Отменить", click: "panelClose", full: true })}` };
+  }
+  onClick("subscriptionPay", () => { subscriptionPaymentState = "pending"; requestRender(); });
+  onClick("subscriptionFail", () => { subscriptionPaymentState = "failed"; requestRender(); });
+  onClick("subscriptionPaid", async () => {
+    if (subscriptionPaymentState !== "pending" || !selectedSchoolPlan) return;
+    const plan = selectedSchoolPlan;
+    if (activeTeachers().length > plan.limit) { showInfo("Недостаточно мест на выбранном тарифе"); return; }
+    subscriptionPaymentState = "paid";
+    db.school.tariffName = plan.name;
+    db.school.teachersLimit = plan.limit;
+    demoSubscriptionPayments.unshift({ plan: plan.name, amount: plan.price, date: new Date().toLocaleDateString("ru-RU") });
+    await loadSchool();
+    closeAllPanels();
+    showSuccess("Демонстрация: подписка школы обновлена");
+  });
+  function subscriptionPage() {
+    const currentPlan = TARIFFS.find(plan => plan.name === schoolData()?.tariffName) ?? TARIFFS[0];
+    const occupied = activeTeachers().length;
+    return page({ title: "Управление подпиской", headerHeading: false, mainLabel: "Управление подпиской", hideBottomMenu: true,
+      content: `<div class="subscription-page"><header class="subscription-heading"><h1>Подписка школы</h1><p>${esc(schoolData()?.name ?? "")}</p></header><section class="subscription-current" aria-label="Текущая подписка"><div><span class="subscription-current-label">Текущий тариф</span><h2>${esc(currentPlan.name)}</h2><p>${occupied} из ${schoolData()?.teachersLimit ?? currentPlan.limit} мест для преподавателей занято</p></div><div><strong>${moneyToString(currentPlan.price)} / месяц</strong><p>Демонстрационная подписка</p></div></section><p class="subscription-demo-note">Цены, лимиты и условия на этой странице демонстрационные и требуют согласования. Личная подписка SecRep учитывается отдельно.</p><section class="subscription-plans" aria-label="Школьные тарифы">${TARIFFS.map(plan => {
+        const current = plan.key === currentPlan.key;
+        const tooSmall = plan.limit < occupied;
+        return `<article class="subscription-plan ${current ? "current" : ""}"><div class="subscription-plan-label">${current ? "Ваш текущий тариф" : "Для школы"}</div><div class="subscription-plan-head"><h2>${esc(plan.name)}</h2><p class="subscription-price">${moneyToString(plan.price)}</p><p>за 1 месяц</p><p>До ${plan.limit} преподавателей</p><p class="form-hint">Демонстрационный лимит</p>${current ? kitButtonWhite({ text: "Текущий тариф", disabled: true, full: true }) : kitButtonDarkViolet({ text: tooSmall ? "Недостаточно мест" : "Выбрать тариф", click: "subscriptionChoose", data: { key: plan.key }, disabled: tooSmall, full: true })}${tooSmall ? `<p class="form-hint">В школе ${occupied} преподавателей — нужен тариф с большим лимитом.</p>` : ""}</div><div class="subscription-plan-features"><h3>Для работы школы</h3><ul>${schoolPlanFeatures().map(text => `<li>${chevronRightSvg({ size: 20 })}<span>${text}</span></li>`).join("")}</ul></div></article>`;
+      }).join("")}</section><section class="subscription-comparison"><h2>В чём разница тарифов?</h2><p>В этом прототипе тарифы различаются демонстрационным лимитом преподавателей. Функциональные ограничения школьных тарифов ещё не утверждены.</p><div class="subscription-compare-grid">${TARIFFS.map(plan => `<div><strong>${esc(plan.name)}</strong><span>До ${plan.limit} преподавателей</span></div>`).join("")}</div></section></div>` });
   }
 
   // src/pages/staff/common/teacherForm.ts
@@ -3969,7 +4063,7 @@
     showSuccess("Учитель вернулся в активные");
   });
   onClick("staffChangeTariff", () => {
-    showInfo("Смена тарифа: экран «Управление подпиской» базового SecRep");
+    goTo({ page: "subscription" });
   });
   function teacherRow2(teacher2) {
     const studentsCount = teacherStudents(teacher2.id).length;
@@ -4614,6 +4708,7 @@
     if (r.page === "home") {
       return homePage();
     }
+    if (r.page === "subscription") return subscriptionPage();
     if (r.page === "notifications") {
       return notificationsPage();
     }
@@ -4649,7 +4744,12 @@
     const classes = `root ${viewportClasses()}`;
     app.className = classes;
     overlay.className = classes;
-    app.innerHTML = pageHtml() + protoNav();
+    app.innerHTML = pageHtml() + protoNav() + accountMenuHtml();
+    if (accountMenuOpen) {
+      const dialog = document.getElementById("account-dialog");
+      dialog.showModal();
+      dialog.addEventListener("cancel", event => { event.preventDefault(); closeAccountMenu(); });
+    }
     renderPanels(overlay);
     applyTypograph(app);
     applyTypograph(overlay);
