@@ -1,3 +1,4 @@
+Warning: fs was declared with const; use let for reassignable variables.
 "use strict";
 (() => {
   // src/stores/renderer.ts
@@ -1170,7 +1171,8 @@
     home: { page: "home" },
     staff: { page: "staff", view: "list" },
     students: { page: "students", view: "list" },
-    schedule: { page: "schedule" }
+    schedule: { page: "schedule" },
+    notifications: { page: "notifications" }
   };
   function goTo(next) {
     previous = current;
@@ -1689,6 +1691,16 @@
     { key: "pay", icon: () => creditCardSvg() }
   ];
   var SECTION_NAMES = { home: "Главная", notifications: "Уведомления", pay: "Пэй" };
+  var notificationTab = "teacher";
+  var notificationSettings = {
+    allTeacher: false,
+    accountInvite: false,
+    telegramActivated: false,
+    lessonBookedCancelled: false,
+    scheduleEvents: true,
+    repeatReminder: false,
+    dailySummary: false
+  };
   onClick("menuGo", (el) => {
     const key = dataOf(el, "key");
     if (key === "home") {
@@ -1707,7 +1719,52 @@
       goTo({ page: "schedule" });
       return;
     }
+    if (key === "notifications") {
+      goTo({ page: "notifications" });
+      return;
+    }
     showInfo(`Раздел «${SECTION_NAMES[key] ?? key}» в${NBSP}эту секцию макетов не${NBSP}входит`);
+  });
+  onClick("notificationToggle", (el) => {
+    const key = dataOf(el, "key");
+    if (!(key in notificationSettings)) return;
+    notificationSettings[key] = !notificationSettings[key];
+    if (key === "allTeacher") {
+      ["accountInvite", "telegramActivated", "lessonBookedCancelled", "scheduleEvents", "repeatReminder", "dailySummary"].forEach((item) => {
+        notificationSettings[item] = notificationSettings.allTeacher;
+      });
+    } else {
+      notificationSettings.allTeacher = ["accountInvite", "telegramActivated", "lessonBookedCancelled", "scheduleEvents", "repeatReminder", "dailySummary"].every((item) => notificationSettings[item]);
+    }
+    requestRender();
+  });
+  onClick("notificationTab", (el) => {
+    notificationTab = dataOf(el, "key");
+    requestRender();
+  });
+  onClick("notificationPaymentSend", async (el) => {
+    const studentId = Number(dataOf(el, "id"));
+    const { success } = await api("school/student_payment_reminder_send", { studentId });
+    if (success) {
+      closeAllPanels();
+      showSuccess("Напоминание об оплате отправлено");
+    }
+  });
+  onClick("notificationAction", (el) => {
+    const key = dataOf(el, "key");
+    if (key === "payment") {
+      openNotificationPaymentPanel();
+      return;
+    }
+    if (key === "recent") {
+      showInfo("История уведомлений появится после подключения отправки уведомлений");
+      return;
+    }
+    if (key === "timezone") {
+      showInfo("Настройка часового пояса в этом прототипе не раскрыта");
+      return;
+    }
+    showInfo("Подробности работы уведомлений в макете не показаны");
   });
   onClick("menuCollapse", () => {
     menuCollapsed = !menuCollapsed;
@@ -1737,12 +1794,12 @@
     const me = avatarCircle("Администратор", { size: "l" });
     const desktop = isDesktop();
     return `<div class="page">
-    ${desktop ? `<div class="page-top"><span class="page-top-title">${esc(props.title)}</span><button type="button" class="page-top-me" data-click="pageStub" data-text="Меню профиля как в базовом SecRep">${me}${chevronDownSvg({ size: 24 })}</button></div>` : `<div class="page-top">${me}${kitIconButton({ icon: bellSvg(), click: "menuGo", data: { key: "notifications" }, title: "Уведомления" })}</div>`}
+    ${desktop ? `<div class="page-top">${props.hideTopTitle ? "" : props.headerHeading ? `<h1 class="page-top-title notification-top-title">${esc(props.title)}</h1>` : `<span class="page-top-title">${esc(props.title)}</span>`}<button type="button" class="page-top-me" data-click="pageStub" data-text="Меню профиля как в базовом SecRep">${me}${chevronDownSvg({ size: 24 })}</button></div>` : `<div class="page-top">${me}${kitIconButton({ icon: bellSvg(), click: "menuGo", data: { key: "notifications" }, title: "Уведомления" })}</div>`}
     <div class="page-body">
       ${desktop ? sideMenu(props.activeMenu) : ""}
-      <main class="page-content">${props.content}</main>
+      <main class="page-content" ${props.mainLabel ? `aria-label="${esc(props.mainLabel)}"` : ""}>${props.content}</main>
     </div>
-    ${desktop ? "" : bottomMenu(props.activeMenu)}
+    ${desktop || props.hideBottomMenu ? "" : bottomMenu(props.activeMenu)}
   </div>`;
   }
 
@@ -2764,6 +2821,116 @@
       ${debtorsBlock()}
       ${weekBlock()}
     </div>`
+    });
+  }
+
+  // src/pages/notifications/NotificationsPage.ts
+  function notificationRow(key, label) {
+    const checked = Boolean(notificationSettings[key]);
+    return `<button type="button" class="notification-toggle-row" aria-pressed="${checked}" data-click="notificationToggle" data-key="${key}"><span>${label}</span>${modernSwitcher(checked)}</button>`;
+  }
+  function notificationPremiumRow(label) {
+    return `<div class="notification-premium-row"><span>${label}</span><img src="assets/notifications-crown.svg" alt="" width="30" height="30"></div>`;
+  }
+  function notificationRows(rows) {
+    return `<div class="notification-rows">${rows}</div>`;
+  }
+  function notificationSection(title, rows) {
+    return `<section class="notification-section"><h3>${title}</h3>${notificationRows(rows)}</section>`;
+  }
+  function notificationSelect(label, value, disabled = false) {
+    return `<div class="notification-select-row ${disabled ? "disabled" : ""}"><span>${label}</span><button type="button" class="notification-select" data-click="notificationAction" data-key="time" ${disabled ? "disabled" : ""}><span>${value}</span>${chevronRightSvg({ size: 24 })}</button></div>`;
+  }
+  function notificationSettingsCard(rows, color = "teacher") {
+    return `<div class="notification-settings notification-settings-${color}">${rows}</div>`;
+  }
+  function notificationColumnHeader(title, description, student = false) {
+    return `<div class="notification-column-header"><div class="notification-column-title"><h2>${title}</h2>${student ? `<span class="notification-expert-pill">На тарифе Эксперт ${goToSvg({ size: 20 })}</span>` : ""}</div><p>${description}</p></div>`;
+  }
+  function openNotificationPaymentPanel() {
+    openPanel("notification-payment", () => {
+      const rows = activeStudents().map((student2) => `<button type="button" class="notification-student" data-click="notificationPaymentSend" data-id="${student2.id}" ${student2.connected ? "" : "disabled"}>${avatarCircle(student2.name, { size: "m" })}<span class="notification-student-meta"><strong>${esc(student2.name)}</strong><small>${student2.connected ? "Подключен к SecRep" : "Не подключен к SecRep"}</small></span>${student2.connected ? chevronRightSvg({ size: 20 }) : ""}</button>`).join("");
+      return {
+        title: "Напомнить об оплате",
+        narrow: true,
+        body: `<p class="notification-payment-intro">Выберите ученика, которому нужно отправить напоминание.</p><div class="notification-payment-list">${rows || `<div class="form-hint">Нет активных учеников</div>`}</div>`
+      };
+    });
+  }
+  function notificationActions() {
+    return `<div class="notification-actions">
+      <button type="button" class="notification-action notification-action-payment" data-click="notificationAction" data-key="payment"><span>Напомнить об оплате</span><span class="notification-payment-icon">${bellSvg({ size: 24 })}</span></button>
+      <button type="button" class="notification-action notification-action-timezone" data-click="notificationAction" data-key="timezone"><span>Часовой пояс для уведомлений</span><span class="notification-action-arrow">${chevronRightSvg({ size: 24 })}</span></button>
+      <button type="button" class="notification-action notification-action-recent" data-click="notificationAction" data-key="recent"><span>Последние 10 уведомлений ученикам</span><span class="notification-action-arrow">${goToSvg({ size: 24 })}</span></button>
+      <button type="button" class="notification-action notification-action-info" aria-label="Информация об уведомлениях" data-click="notificationAction" data-key="info">${questionCircleSvg({ size: 24 })}</button>
+    </div>`;
+  }
+  function teacherHeader() {
+    return notificationColumnHeader("Учителю", "Расскажите, о чём вас оповещать");
+  }
+  function teacherCoreSettings() {
+    const master = `<button type="button" class="notification-toggle-row" aria-pressed="${notificationSettings.allTeacher}" aria-label="Включить все уведомления для учителя" data-click="notificationToggle" data-key="allTeacher"><span>Включить все уведомления для учителя</span>${modernSwitcher(notificationSettings.allTeacher)}</button>`;
+    const start = notificationSection("Начало работы", `${notificationRow("accountInvite", "Ученик принял приглашение на связку аккаунтов")}${notificationRow("telegramActivated", "Ученик активировал Telegram-бот")}`);
+    const process = notificationSection("Учебный процесс", `${notificationPremiumRow("Ученик сдал домашнее задание")}${notificationRow("lessonBookedCancelled", "Ученик забронировал или отменил занятие")}`);
+    return notificationSettingsCard(`<div class="notification-settings-stack">${master}${start}${process}</div>`, "teacher");
+  }
+  function teacherScheduleSettings() {
+    const main = `<div class="notification-settings-stack">
+      ${notificationRow("scheduleEvents", "Уведомлять о предстоящих делах и занятиях")}
+      ${notificationSelect("Когда?", "В момент события")}
+      ${notificationRow("repeatReminder", "Уведомить повторно")}
+      ${notificationSelect("Когда?", "В момент события", !notificationSettings.repeatReminder)}
+    </div>`;
+    const daily = `<div class="notification-settings-stack">
+      ${notificationRow("dailySummary", "Присылать ежедневную сводку с расписанием на сутки")}
+      ${notificationSelect("Когда?", "07:00", !notificationSettings.dailySummary)}
+    </div>`;
+    return `<section class="notification-column-section"><h2>Учителю: работа с расписанием</h2>${notificationSettingsCard(main, "teacher")}${notificationSettingsCard(daily, "teacher")}</section>`;
+  }
+  function studentHeader() {
+    return notificationColumnHeader("Ученикам", "Расскажите, о чём оповещать учеников", true);
+  }
+  function studentCoreSettings() {
+    const rows = `<div class="notification-settings-stack">
+      ${notificationPremiumRow("Включить все уведомления для ученика")}
+      ${notificationSection("Учебный процесс", `${notificationPremiumRow("О новом домашнем задании")}${notificationPremiumRow("Об оценке по домашнему заданию")}${notificationPremiumRow("О проверенном домашнем задании")}${notificationPremiumRow("Об отправке домашнего задания на доработку")}${notificationPremiumRow("Об удаленном домашнем задании")}${notificationPremiumRow("О новом абонементе")}${notificationPremiumRow("О новых занятиях, отменах и переносах")}`)}
+    </div>`;
+    return notificationSettingsCard(rows, "student");
+  }
+  function studentReminders() {
+    const doubleReminders = `<div class="notification-settings-stack">
+      ${notificationPremiumRow("Уведомить о предстоящих занятиях")}
+      ${notificationSelect("Когда?", "В момент события", true)}
+      ${notificationPremiumRow("Уведомить повторно")}
+      ${notificationSelect("Когда?", "В момент события", true)}
+    </div>`;
+    const homework = `<div class="notification-settings-stack">
+      ${notificationPremiumRow("Напомнить о дедлайне по домашнему заданию")}
+      ${notificationSelect("За сколько часов до?", "24", true)}
+      ${notificationPremiumRow("Уведомить повторно")}
+      ${notificationSelect("За сколько часов до?", "24", true)}
+    </div>`;
+    return `<section class="notification-column-section"><div class="notification-column-title"><h2>Ученикам: двойные напоминания</h2><span class="notification-expert-pill">На тарифе Эксперт ${goToSvg({ size: 20 })}</span></div>${notificationSettingsCard(doubleReminders, "student")}${notificationSettingsCard(homework, "student")}</section>`;
+  }
+  function notificationsPage() {
+    const studentTab = notificationTab === "students";
+    return page({
+      activeMenu: "notifications",
+      title: "Уведомления",
+      headerHeading: true,
+      hideBottomMenu: true,
+      mainLabel: "Уведомления",
+      content: `<div class="notification-page">
+        ${notificationActions()}
+        <div class="notification-mobile-view">
+          ${tabs([{ key: "teacher", text: "Учителю" }, { key: "students", text: "Ученикам" }], notificationTab, "notificationTab")}
+          <div class="notification-mobile-content">${studentTab ? `${studentHeader()}${studentCoreSettings()}${studentReminders()}` : `${teacherHeader()}${teacherCoreSettings()}${teacherScheduleSettings()}`}</div>
+        </div>
+        <div class="notification-desktop-grid">
+          <div class="notification-desktop-column">${teacherHeader()}${teacherCoreSettings()}${teacherScheduleSettings()}</div>
+          <div class="notification-desktop-column">${studentHeader()}${studentCoreSettings()}${studentReminders()}</div>
+        </div>
+      </div>`
     });
   }
 
@@ -4483,6 +4650,9 @@
     }
     if (r.page === "home") {
       return homePage();
+    }
+    if (r.page === "notifications") {
+      return notificationsPage();
     }
     if (r.page === "staff") {
       return staffPage();
