@@ -4782,3 +4782,20 @@ button.side-menu-row {
   grid-template-columns: minmax(0, 1fr) 60px;
   align-items: center;
 }
+
+/* School administrators occupy their own row above recipient settings. */
+.notification-admin-column {
+  grid-column: 1 / -1;
+}
+@media (max-width: 743px) {
+  .notification-mobile-view > .kit-tabs {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .notification-mobile-view > .kit-tabs button {
+    flex: 1 1 120px;
+    min-height: 32px;
+    padding: 8px;
+  }
+}
