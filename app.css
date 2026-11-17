@@ -4776,3 +4776,9 @@ button.side-menu-row {
 .lesson-no-package .form-link {
   font-size: 13px;
 }
+
+/* School MVP actions: payment and information. */
+.root .notification-school-actions {
+  grid-template-columns: minmax(0, 1fr) 60px;
+  align-items: center;
+}
