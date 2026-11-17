@@ -1690,8 +1690,11 @@
     { key: "pay", icon: () => creditCardSvg() }
   ];
   var SECTION_NAMES = { home: "Главная", notifications: "Уведомления", pay: "Пэй" };
-  var notificationTab = "teacher";
+  var notificationTab = "admin";
   var notificationSettings = {
+    adminTeacherJoined: true,
+    adminTeacherBot: true,
+    adminScheduleChanged: true,
     teacherUpcoming: true,
     teacherRescheduled: true,
     teacherCancelled: true,
@@ -2856,6 +2859,14 @@
       <button type="button" class="notification-action notification-action-info" aria-label="Информация об уведомлениях" data-click="notificationAction" data-key="info">${questionCircleSvg({ size: 24 })}</button>
     </div>`;
   }
+  function schoolAdminNotifications() {
+    const rows = notificationSection("Подключение преподавателей",
+      notificationRow("adminTeacherJoined", "Преподаватель принял приглашение в школу")
+      + notificationRow("adminTeacherBot", "Преподаватель подключил Telegram-бота"))
+      + notificationSection("Расписание школы",
+      notificationRow("adminScheduleChanged", "Преподаватель назначил, перенёс или отменил занятие"));
+    return `${notificationColumnHeader("Администраторам", "Сообщения администраторам и владельцам выбранной школы")}${notificationSettingsCard(`<div class="notification-settings-stack">${rows}<p class="form-hint">Только события этой школы. Для получения сообщений нужен подключённый канал SecRep.</p></div>`, "teacher")}`;
+  }
   function schoolNotificationColumn(recipient) {
     const teacher2 = recipient === "teacher";
     const title = teacher2 ? "Преподавателям" : "Ученикам";
@@ -2874,10 +2885,11 @@
       content: `<div class="notification-page">
         ${notificationActions()}
         <div class="notification-mobile-view">
-          ${tabs([{ key: "teacher", text: "Преподавателям" }, { key: "students", text: "Ученикам" }], notificationTab, "notificationTab")}
-          <div class="notification-mobile-content">${schoolNotificationColumn(notificationTab === "students" ? "student" : "teacher")}</div>
+          ${tabs([{ key: "admin", text: "Администраторам" }, { key: "teacher", text: "Преподавателям" }, { key: "students", text: "Ученикам" }], notificationTab, "notificationTab")}
+          <div class="notification-mobile-content">${notificationTab === "admin" ? schoolAdminNotifications() : schoolNotificationColumn(notificationTab === "students" ? "student" : "teacher")}</div>
         </div>
         <div class="notification-desktop-grid">
+          <div class="notification-desktop-column notification-admin-column">${schoolAdminNotifications()}</div>
           <div class="notification-desktop-column">${schoolNotificationColumn("teacher")}</div>
           <div class="notification-desktop-column">${schoolNotificationColumn("student")}</div>
         </div>
