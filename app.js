@@ -3810,7 +3810,7 @@
         ${input({ label: "Конец периода", value: "05.10.2026", input: "noop", field: "to", maxlength: DATE_MAX_LENGTH, center: true, grow: true })}
         ${kitButtonWhite({ text: "Поиск", click: "tutorHistorySearch", full: true })}
       </div>
-      <div class="history-list">${teacherHistory().map(historyItemCard).join("") || '<div class="form-hint">Пока нет событий</div>'}</div>`
+      <div class="history-list tutor-history-list">${teacherHistory().map(historyItemCard).join("") || '<div class="form-hint">Пока нет событий</div>'}</div>`
     }));
   }
   onInput("tutorStudentsSearch", (el) => {

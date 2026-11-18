@@ -797,6 +797,11 @@ label.kit-search,
   gap:16px;
 }
 
+.tutor-history-list {
+  display: grid;
+  grid-auto-rows: 1fr;
+}
+
 .history-card {
   display: flex;
   align-items: center;
